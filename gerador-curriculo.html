@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CurriculumAI — Gerador de Currículo Profissional</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #1a1a2e;
+    --ink-mid: #3d3d5c;
+    --ink-light: #7070a0;
+    --paper: #fafaf7;
+    --paper-warm: #f5f2eb;
+    --accent: #c4783a;
+    --accent-light: #e8c4a0;
+    --accent-pale: #fdf4ec;
+    --line: rgba(26,26,46,0.1);
+    --success: #2d7a5a;
+    --error: #c43a3a;
+    --radius: 10px;
+    --shadow: 0 2px 20px rgba(26,26,46,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--ink);
+    padding: 1.5rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    color: #fff;
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--accent-light); }
+  .header-sub {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.45);
+    margin-left: auto;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* ── LAYOUT ── */
+  .app {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 0;
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 2rem;
+    gap: 2rem;
+  }
+
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { order: -1; }
+  }
+
+  /* ── FORM PANEL ── */
+  .form-panel {
+    background: #fff;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  /* ── STEPS NAV ── */
+  .steps-nav {
+    display: flex;
+    border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .step-btn {
+    flex: 1;
+    min-width: 90px;
+    padding: 1rem 0.5rem;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--ink-light);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .step-btn .step-num {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--paper-warm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .step-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .step-btn.active .step-num {
+    background: var(--accent);
+    color: #fff;
+  }
+  .step-btn.done .step-num {
+    background: var(--success);
+    color: #fff;
+  }
+  .step-btn.done .step-num::after { content: '✓'; font-size: 0.8rem; }
+  .step-btn.done .step-label { color: var(--success); }
+
+  /* ── FORM CONTENT ── */
+  .step-content { display: none; padding: 2rem; }
+  .step-content.active { display: block; }
+
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+    color: var(--ink);
+  }
+  .section-desc {
+    font-size: 0.875rem;
+    color: var(--ink-light);
+    margin-bottom: 1.75rem;
+  }
+
+  /* ── FIELDS ── */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  .form-grid.full { grid-template-columns: 1fr; }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field.span2 { grid-column: 1/-1; }
+
+  label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--ink-mid);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  label .req { color: var(--accent); margin-left: 2px; }
+
+  input, textarea, select {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9375rem;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1.5px solid var(--line);
+    border-radius: 7px;
+    padding: 0.6rem 0.9rem;
+    width: 100%;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-pale);
+    background: #fff;
+  }
+  input.error, textarea.error {
+    border-color: var(--error);
+    box-shadow: 0 0 0 3px rgba(196,58,58,0.08);
+  }
+  .error-msg {
+    font-size: 0.78rem;
+    color: var(--error);
+    display: none;
+  }
+  .error-msg.visible { display: block; }
+  textarea { resize: vertical; min-height: 90px; }
+
+  /* ── DYNAMIC BLOCKS ── */
+  .dynamic-list { display: flex; flex-direction: column; gap: 1rem; }
+  .dynamic-item {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    position: relative;
+    background: var(--paper);
+    transition: box-shadow 0.2s;
+  }
+  .dynamic-item:hover { box-shadow: 0 2px 12px rgba(26,26,46,0.07); }
+  .item-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 1rem;
+  }
+  .item-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    background: var(--accent-pale);
+    color: var(--accent);
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+  .remove-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ink-light);
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 5px;
+    transition: all 0.15s;
+  }
+  .remove-btn:hover { background: rgba(196,58,58,0.1); color: var(--error); }
+
+  .add-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: 1.5px dashed var(--accent-light);
+    border-radius: var(--radius);
+    padding: 0.75rem 1.25rem;
+    color: var(--accent);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    width: 100%;
+    justify-content: center;
+    transition: all 0.2s;
+    margin-top: 0.5rem;
+  }
+  .add-btn:hover { background: var(--accent-pale); border-style: solid; }
+
+  /* ── HABILIDADES ── */
+  .skills-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0.75rem;
+    border: 1.5px solid var(--line);
+    border-radius: 7px;
+    background: var(--paper);
+    min-height: 52px;
+    cursor: text;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .skills-container:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-pale);
+    background: #fff;
+  }
+  .skill-tag {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 20px;
+    padding: 4px 12px 4px 14px;
+    font-size: 0.84rem;
+    font-weight: 400;
+    white-space: nowrap;
+  }
+  .skill-tag button {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.6);
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0;
+    transition: color 0.15s;
+  }
+  .skill-tag button:hover { color: #fff; }
+  .skill-input {
+    border: none;
+    background: transparent;
+    outline: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    color: var(--ink);
+    min-width: 120px;
+    flex: 1;
+    padding: 2px 4px;
+  }
+  .skill-hint { font-size: 0.8rem; color: var(--ink-light); margin-top: 5px; }
+
+  /* ── FOTO ── */
+  .photo-zone {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+  .photo-preview {
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    background: var(--paper-warm);
+    border: 2px dashed var(--accent-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    overflow: hidden;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .photo-preview:hover { border-color: var(--accent); }
+  .photo-preview img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+  .photo-info { flex: 1; }
+  .photo-info p { font-size: 0.85rem; color: var(--ink-light); margin-bottom: 0.5rem; }
+  #photoInput { display: none; }
+
+  /* ── NAVIGATION BUTTONS ── */
+  .form-nav {
+    display: flex;
+    gap: 1rem;
+    padding: 1.5rem 2rem;
+    border-top: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 0.65rem 1.5rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-outline {
+    background: none;
+    border: 1.5px solid var(--line);
+    color: var(--ink-mid);
+  }
+  .btn-outline:hover { border-color: var(--ink-mid); background: var(--paper-warm); }
+  .btn-primary {
+    background: var(--ink);
+    color: #fff;
+    margin-left: auto;
+  }
+  .btn-primary:hover { background: var(--accent); }
+  .btn-generate {
+    background: var(--accent);
+    color: #fff;
+    padding: 0.65rem 2rem;
+    font-weight: 600;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-generate:hover { background: #b36930; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(196,120,58,0.35); }
+  .btn-generate:active { transform: translateY(0); }
+
+  /* ── SIDEBAR ── */
+  .sidebar { display: flex; flex-direction: column; gap: 1.25rem; }
+  .preview-card {
+    background: #fff;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .preview-header {
+    background: var(--ink);
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .preview-header h3 {
+    font-family: 'Playfair Display', serif;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .live-badge {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: var(--accent);
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  /* ── MINI PREVIEW ── */
+  #miniPreview {
+    padding: 1.5rem;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--ink-mid);
+    min-height: 260px;
+  }
+  .preview-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+  .preview-contact {
+    font-size: 0.72rem;
+    color: var(--ink-light);
+    margin-bottom: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+  .preview-section-title {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    border-bottom: 1.5px solid var(--accent-light);
+    padding-bottom: 3px;
+    margin: 10px 0 6px;
+  }
+  .preview-item-title { font-weight: 600; font-size: 0.76rem; color: var(--ink); }
+  .preview-item-sub { color: var(--ink-light); font-size: 0.71rem; }
+  .preview-skills-wrap { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .preview-skill-pill {
+    background: var(--paper-warm);
+    color: var(--ink-mid);
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-size: 0.68rem;
+  }
+
+  /* ── TEMPLATE SELECTOR ── */
+  .template-selector {
+    background: #fff;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    padding: 1.25rem;
+  }
+  .template-selector h4 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-weight: 600;
+    color: var(--ink-mid);
+    margin-bottom: 0.75rem;
+  }
+  .template-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .template-opt {
+    border: 2px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--paper);
+  }
+  .template-opt:hover { border-color: var(--accent-light); }
+  .template-opt.selected { border-color: var(--accent); background: var(--accent-pale); }
+  .template-opt .t-icon { font-size: 1.4rem; margin-bottom: 4px; }
+  .template-opt .t-name { font-size: 0.72rem; font-weight: 500; color: var(--ink-mid); }
+  .template-opt.selected .t-name { color: var(--accent); }
+
+  /* ── PROGRESS ── */
+  .progress-card {
+    background: #fff;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    padding: 1.25rem;
+  }
+  .progress-card h4 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-weight: 600;
+    color: var(--ink-mid);
+    margin-bottom: 0.75rem;
+  }
+  .progress-bar-wrap {
+    background: var(--paper-warm);
+    border-radius: 20px;
+    height: 8px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #e09050);
+    border-radius: 20px;
+    transition: width 0.5s ease;
+  }
+  .progress-label { font-size: 0.8rem; color: var(--ink-light); }
+  .progress-label strong { color: var(--accent); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--ink);
+    color: #fff;
+    padding: 0.8rem 1.4rem;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--error); }
+
+  /* ── SPINNER ── */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Curriculum<span>AI</span></div>
+  <div class="header-sub">Gerador de Currículo Profissional</div>
+</header>
+
+<div class="app">
+  <!-- FORM PANEL -->
+  <div class="form-panel">
+    <div class="steps-nav" id="stepsNav">
+      <button class="step-btn active" onclick="goToStep(0)">
+        <span class="step-num">1</span>
+        <span class="step-label">Dados</span>
+      </button>
+      <button class="step-btn" onclick="goToStep(1)">
+        <span class="step-num">2</span>
+        <span class="step-label">Objetivo</span>
+      </button>
+      <button class="step-btn" onclick="goToStep(2)">
+        <span class="step-num">3</span>
+        <span class="step-label">Formação</span>
+      </button>
+      <button class="step-btn" onclick="goToStep(3)">
+        <span class="step-num">4</span>
+        <span class="step-label">Experiência</span>
+      </button>
+      <button class="step-btn" onclick="goToStep(4)">
+        <span class="step-num">5</span>
+        <span class="step-label">Habilidades</span>
+      </button>
+    </div>
+
+    <!-- STEP 1: Dados Pessoais -->
+    <div class="step-content active" id="step-0">
+      <div class="section-title">Dados Pessoais</div>
+      <p class="section-desc">Suas informações básicas de contato e identificação.</p>
+
+      <div class="photo-zone">
+        <div class="photo-preview" onclick="document.getElementById('photoInput').click()" id="photoPreview">📷</div>
+        <div class="photo-info">
+          <p>Adicione uma foto profissional (opcional)</p>
+          <button class="btn btn-outline" style="font-size:0.8rem;padding:0.4rem 1rem;" onclick="document.getElementById('photoInput').click()">Escolher foto</button>
+        </div>
+        <input type="file" id="photoInput" accept="image/*" onchange="handlePhoto(event)">
+      </div>
+
+      <div class="form-grid">
+        <div class="field span2">
+          <label>Nome Completo <span class="req">*</span></label>
+          <input type="text" id="nome" placeholder="ex: Ana Lima Silva" oninput="updatePreview()">
+          <span class="error-msg" id="err-nome">Por favor, insira seu nome completo.</span>
+        </div>
+        <div class="field">
+          <label>Email <span class="req">*</span></label>
+          <input type="email" id="email" placeholder="seu@email.com" oninput="updatePreview()">
+          <span class="error-msg" id="err-email">Insira um email válido.</span>
+        </div>
+        <div class="field">
+          <label>Telefone <span class="req">*</span></label>
+          <input type="tel" id="telefone" placeholder="(11) 98765-4321" oninput="updatePreview()">
+          <span class="error-msg" id="err-telefone">Por favor, insira seu telefone.</span>
+        </div>
+        <div class="field">
+          <label>Cidade / Estado <span class="req">*</span></label>
+          <input type="text" id="cidade" placeholder="São Paulo, SP" oninput="updatePreview()">
+          <span class="error-msg" id="err-cidade">Insira sua cidade.</span>
+        </div>
+        <div class="field">
+          <label>LinkedIn / Portfólio</label>
+          <input type="url" id="linkedin" placeholder="linkedin.com/in/seuperfil" oninput="updatePreview()">
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2: Objetivo -->
+    <div class="step-content" id="step-1">
+      <div class="section-title">Objetivo Profissional</div>
+      <p class="section-desc">Descreva brevemente seu objetivo de carreira e o que você busca.</p>
+      <div class="form-grid full">
+        <div class="field">
+          <label>Objetivo <span class="req">*</span></label>
+          <textarea id="objetivo" rows="5" placeholder="Ex: Busco oportunidades como Desenvolvedor Front-end Sênior, onde possa contribuir com minha experiência em React e Vue.js para criar produtos digitais de alto impacto..." oninput="updatePreview()"></textarea>
+          <span class="error-msg" id="err-objetivo">Por favor, descreva seu objetivo profissional.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3: Formação -->
+    <div class="step-content" id="step-2">
+      <div class="section-title">Formação Acadêmica</div>
+      <p class="section-desc">Adicione seus cursos e instituições de ensino.</p>
+      <div class="dynamic-list" id="formacaoList"></div>
+      <button class="add-btn" onclick="addFormacao()">＋ Adicionar formação</button>
+    </div>
+
+    <!-- STEP 4: Experiência -->
+    <div class="step-content" id="step-3">
+      <div class="section-title">Experiência Profissional</div>
+      <p class="section-desc">Liste suas experiências mais recentes primeiro.</p>
+      <div class="dynamic-list" id="experienciaList"></div>
+      <button class="add-btn" onclick="addExperiencia()">＋ Adicionar experiência</button>
+    </div>
+
+    <!-- STEP 5: Habilidades -->
+    <div class="step-content" id="step-4">
+      <div class="section-title">Habilidades</div>
+      <p class="section-desc">Adicione suas competências técnicas e interpessoais.</p>
+      <div class="field" style="margin-bottom:1.5rem;">
+        <label>Suas habilidades</label>
+        <div class="skills-container" id="skillsContainer" onclick="document.getElementById('skillInput').focus()">
+          <input type="text" class="skill-input" id="skillInput" placeholder="Digite e pressione Enter..." onkeydown="handleSkillInput(event)">
+        </div>
+        <span class="skill-hint">💡 Pressione Enter ou vírgula para adicionar cada habilidade</span>
+      </div>
+      <div style="margin-top:1rem;">
+        <label style="margin-bottom:8px;display:block;">Sugestões rápidas</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;" id="suggestions"></div>
+      </div>
+    </div>
+
+    <!-- NAVIGATION -->
+    <div class="form-nav">
+      <button class="btn btn-outline" id="prevBtn" onclick="prevStep()" style="display:none;">← Anterior</button>
+      <button class="btn btn-primary" id="nextBtn" onclick="nextStep()">Próximo →</button>
+      <button class="btn btn-generate" id="generateBtn" style="display:none;" onclick="generatePDF()">
+        <span id="genBtnText">⬇ Baixar PDF</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <!-- Live Preview -->
+    <div class="preview-card">
+      <div class="preview-header">
+        <h3>Pré-visualização</h3>
+        <span class="live-badge">ao vivo</span>
+      </div>
+      <div id="miniPreview">
+        <p style="text-align:center;color:var(--ink-light);padding:2rem 0;font-size:0.85rem;">Preencha o formulário para ver a pré-visualização do seu currículo aqui.</p>
+      </div>
+    </div>
+
+    <!-- Template -->
+    <div class="template-selector">
+      <h4>Escolha o Template</h4>
+      <div class="template-options">
+        <div class="template-opt selected" onclick="selectTemplate('classic')" id="tpl-classic">
+          <div class="t-icon">📄</div>
+          <div class="t-name">Clássico</div>
+        </div>
+        <div class="template-opt" onclick="selectTemplate('modern')" id="tpl-modern">
+          <div class="t-icon">🎨</div>
+          <div class="t-name">Moderno</div>
+        </div>
+        <div class="template-opt" onclick="selectTemplate('minimal')" id="tpl-minimal">
+          <div class="t-icon">✦</div>
+          <div class="t-name">Minimal</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-card">
+      <h4>Progresso do Currículo</h4>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" id="progressBar" style="width:0%"></div>
+      </div>
+      <p class="progress-label">Preenchimento: <strong id="progressPct">0%</strong></p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let currentStep = 0;
+const totalSteps = 5;
+let skills = [];
+let selectedTemplate = 'classic';
+let photoData = null;
+
+const skillSuggestions = [
+  'JavaScript','Python','React','Vue.js','Node.js','SQL','Excel','Power BI',
+  'Comunicação','Trabalho em equipe','Liderança','Inglês','Espanhol',
+  'Photoshop','Figma','Git','Docker','AWS','Gestão de projetos','Scrum'
+];
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+function init() {
+  addFormacao();
+  addExperiencia();
+  renderSuggestions();
+}
+
+function renderSuggestions() {
+  const wrap = document.getElementById('suggestions');
+  wrap.innerHTML = '';
+  skillSuggestions.filter(s => !skills.includes(s)).slice(0,12).forEach(s => {
+    const b = document.createElement('button');
+    b.className = 'btn btn-outline';
+    b.style.cssText = 'font-size:0.78rem;padding:3px 10px;border-radius:20px;';
+    b.textContent = '+ ' + s;
+    b.onclick = () => { addSkill(s); renderSuggestions(); };
+    wrap.appendChild(b);
+  });
+}
+
+// ═══════════════════════════════════════════
+//  STEPS
+// ═══════════════════════════════════════════
+function goToStep(n) {
+  document.getElementById('step-' + currentStep).classList.remove('active');
+  currentStep = n;
+  document.getElementById('step-' + currentStep).classList.add('active');
+  updateStepNav();
+  updateNavButtons();
+  updatePreview();
+}
+
+function nextStep() {
+  if (!validateStep(currentStep)) return;
+  markStepDone(currentStep);
+  goToStep(Math.min(currentStep + 1, totalSteps - 1));
+}
+
+function prevStep() {
+  goToStep(Math.max(currentStep - 1, 0));
+}
+
+function validateStep(step) {
+  let ok = true;
+  const checks = [
+    [['nome','email','telefone','cidade'], []],
+    [['objetivo'], []],
+    [[], []],
+    [[], []],
+    [[], []]
+  ];
+  checks[step][0].forEach(id => {
+    const el = document.getElementById(id);
+    const errEl = document.getElementById('err-' + id);
+    if (!el.value.trim()) {
+      el.classList.add('error');
+      errEl.classList.add('visible');
+      ok = false;
+    } else {
+      el.classList.remove('error');
+      errEl.classList.remove('visible');
+    }
+  });
+  if (!ok) showToast('Preencha os campos obrigatórios.', 'error');
+  return ok;
+}
+
+function updateStepNav() {
+  document.querySelectorAll('.step-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i === currentStep);
+  });
+}
+
+function markStepDone(step) {
+  const btn = document.querySelectorAll('.step-btn')[step];
+  if (btn && step !== currentStep) {
+    btn.classList.remove('active');
+    btn.classList.add('done');
+    const num = btn.querySelector('.step-num');
+    num.textContent = '';
+  }
+}
+
+function updateNavButtons() {
+  document.getElementById('prevBtn').style.display = currentStep > 0 ? 'inline-block' : 'none';
+  document.getElementById('nextBtn').style.display = currentStep < totalSteps - 1 ? 'inline-block' : 'none';
+  document.getElementById('generateBtn').style.display = currentStep === totalSteps - 1 ? 'flex' : 'none';
+}
+
+// ═══════════════════════════════════════════
+//  FOTO
+// ═══════════════════════════════════════════
+function handlePhoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    photoData = ev.target.result;
+    const preview = document.getElementById('photoPreview');
+    preview.innerHTML = `<img src="${photoData}" alt="foto">`;
+    updatePreview();
+  };
+  reader.readAsDataURL(file);
+}
+
+// ═══════════════════════════════════════════
+//  FORMAÇÃO
+// ═══════════════════════════════════════════
+let formacaoCount = 0;
+function addFormacao() {
+  const id = formacaoCount++;
+  const list = document.getElementById('formacaoList');
+  const div = document.createElement('div');
+  div.className = 'dynamic-item';
+  div.id = 'formacao-' + id;
+  div.innerHTML = `
+    <div class="item-header">
+      <span class="item-badge">Formação ${id+1}</span>
+      <button class="remove-btn" onclick="removeItem('formacao-${id}')">×</button>
+    </div>
+    <div class="form-grid">
+      <div class="field span2">
+        <label>Curso / Graduação <span class="req">*</span></label>
+        <input type="text" id="f-curso-${id}" placeholder="ex: Ciências da Computação" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label>Instituição <span class="req">*</span></label>
+        <input type="text" id="f-inst-${id}" placeholder="ex: USP" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label>Ano de início</label>
+        <input type="text" id="f-inicio-${id}" placeholder="2019" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label>Ano de término</label>
+        <input type="text" id="f-fim-${id}" placeholder="2023 (ou Em andamento)" oninput="updatePreview()">
+      </div>
+    </div>`;
+  list.appendChild(div);
+}
+
+// ═══════════════════════════════════════════
+//  EXPERIÊNCIA
+// ═══════════════════════════════════════════
+let expCount = 0;
+function addExperiencia() {
+  const id = expCount++;
+  const list = document.getElementById('experienciaList');
+  const div = document.createElement('div');
+  div.className = 'dynamic-item';
+  div.id = 'exp-' + id;
+  div.innerHTML = `
+    <div class="item-header">
+      <span class="item-badge">Experiência ${id+1}</span>
+      <button class="remove-btn" onclick="removeItem('exp-${id}')">×</button>
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Empresa <span class="req">*</span></label>
+        <input type="text" id="e-empresa-${id}" placeholder="ex: Google" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label>Cargo <span class="req">*</span></label>
+        <input type="text" id="e-cargo-${id}" placeholder="ex: Engenheiro de Software" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label>Início</label>
+        <input type="text" id="e-inicio-${id}" placeholder="Jan 2022" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label>Fim</label>
+        <input type="text" id="e-fim-${id}" placeholder="Dez 2024 (ou Atual)" oninput="updatePreview()">
+      </div>
+      <div class="field span2">
+        <label>Descrição das atividades</label>
+        <textarea id="e-desc-${id}" rows="3" placeholder="Descreva suas principais responsabilidades e conquistas..." oninput="updatePreview()"></textarea>
+      </div>
+    </div>`;
+  list.appendChild(div);
+}
+
+function removeItem(id) {
+  const el = document.getElementById(id);
+  if (el) { el.style.opacity='0'; el.style.transform='scale(0.95)'; el.style.transition='all 0.2s'; setTimeout(() => el.remove(), 200); }
+  setTimeout(updatePreview, 250);
+}
+
+// ═══════════════════════════════════════════
+//  SKILLS
+// ═══════════════════════════════════════════
+function addSkill(text) {
+  const val = text.trim();
+  if (!val || skills.includes(val)) return;
+  skills.push(val);
+  renderSkills();
+  updatePreview();
+  updateProgress();
+}
+
+function removeSkill(idx) {
+  skills.splice(idx, 1);
+  renderSkills();
+  updatePreview();
+  renderSuggestions();
+}
+
+function renderSkills() {
+  const container = document.getElementById('skillsContainer');
+  const input = document.getElementById('skillInput');
+  container.innerHTML = '';
+  skills.forEach((s, i) => {
+    const tag = document.createElement('div');
+    tag.className = 'skill-tag';
+    tag.innerHTML = `${s}<button onclick="removeSkill(${i})">×</button>`;
+    container.appendChild(tag);
+  });
+  container.appendChild(input);
+}
+
+function handleSkillInput(e) {
+  const input = document.getElementById('skillInput');
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    addSkill(input.value);
+    input.value = '';
+    renderSuggestions();
+  } else if (e.key === 'Backspace' && !input.value && skills.length) {
+    removeSkill(skills.length - 1);
+    renderSuggestions();
+  }
+}
+
+// ═══════════════════════════════════════════
+//  TEMPLATE
+// ═══════════════════════════════════════════
+function selectTemplate(name) {
+  selectedTemplate = name;
+  document.querySelectorAll('.template-opt').forEach(el => el.classList.remove('selected'));
+  document.getElementById('tpl-' + name).classList.add('selected');
+  updatePreview();
+}
+
+// ═══════════════════════════════════════════
+//  PREVIEW & PROGRESS
+// ═══════════════════════════════════════════
+function getData() {
+  const formacoes = [], experiencias = [];
+  document.querySelectorAll('[id^="f-curso-"]').forEach(el => {
+    const id = el.id.split('-').pop();
+    formacoes.push({
+      curso: (document.getElementById('f-curso-'+id)||{value:''}).value,
+      inst: (document.getElementById('f-inst-'+id)||{value:''}).value,
+      inicio: (document.getElementById('f-inicio-'+id)||{value:''}).value,
+      fim: (document.getElementById('f-fim-'+id)||{value:''}).value
+    });
+  });
+  document.querySelectorAll('[id^="e-empresa-"]').forEach(el => {
+    const id = el.id.split('-').pop();
+    experiencias.push({
+      empresa: (document.getElementById('e-empresa-'+id)||{value:''}).value,
+      cargo: (document.getElementById('e-cargo-'+id)||{value:''}).value,
+      inicio: (document.getElementById('e-inicio-'+id)||{value:''}).value,
+      fim: (document.getElementById('e-fim-'+id)||{value:''}).value,
+      desc: (document.getElementById('e-desc-'+id)||{value:''}).value
+    });
+  });
+  return {
+    nome: (document.getElementById('nome')||{value:''}).value,
+    email: (document.getElementById('email')||{value:''}).value,
+    telefone: (document.getElementById('telefone')||{value:''}).value,
+    cidade: (document.getElementById('cidade')||{value:''}).value,
+    linkedin: (document.getElementById('linkedin')||{value:''}).value,
+    objetivo: (document.getElementById('objetivo')||{value:''}).value,
+    formacoes, experiencias, skills, photo: photoData
+  };
+}
+
+function updatePreview() {
+  const d = getData();
+  const p = document.getElementById('miniPreview');
+  if (!d.nome && !d.email) {
+    p.innerHTML = '<p style="text-align:center;color:var(--ink-light);padding:2rem 0;font-size:0.85rem;">Preencha o formulário para ver a pré-visualização.</p>';
+    updateProgress(); return;
+  }
+  let html = '';
+  if (d.nome) html += `<div class="preview-name">${d.nome}</div>`;
+  const contacts = [d.email,d.telefone,d.cidade,d.linkedin].filter(Boolean);
+  if (contacts.length) html += `<div class="preview-contact">${contacts.map(c=>`<span>${c}</span>`).join('')}</div>`;
+  if (d.objetivo) { html += `<div class="preview-section-title">Objetivo</div><div>${d.objetivo.slice(0,120)}${d.objetivo.length>120?'…':''}</div>`; }
+  const fValid = d.formacoes.filter(f => f.curso || f.inst);
+  if (fValid.length) {
+    html += `<div class="preview-section-title">Formação Acadêmica</div>`;
+    fValid.forEach(f => { html += `<div><span class="preview-item-title">${f.curso}</span><br><span class="preview-item-sub">${f.inst}${f.inicio||f.fim?' · '+[f.inicio,f.fim].filter(Boolean).join(' – '):''}</span></div>`; });
+  }
+  const eValid = d.experiencias.filter(e => e.empresa || e.cargo);
+  if (eValid.length) {
+    html += `<div class="preview-section-title">Experiência</div>`;
+    eValid.forEach(e => { html += `<div style="margin-bottom:4px"><span class="preview-item-title">${e.cargo}</span> <span class="preview-item-sub">@ ${e.empresa}</span><br><span class="preview-item-sub">${[e.inicio,e.fim].filter(Boolean).join(' – ')}</span></div>`; });
+  }
+  if (skills.length) {
+    html += `<div class="preview-section-title">Habilidades</div><div class="preview-skills-wrap">${skills.map(s=>`<span class="preview-skill-pill">${s}</span>`).join('')}</div>`;
+  }
+  p.innerHTML = html;
+  updateProgress();
+}
+
+function updateProgress() {
+  const d = getData();
+  let score = 0;
+  if (d.nome) score += 15;
+  if (d.email) score += 10;
+  if (d.telefone) score += 5;
+  if (d.cidade) score += 5;
+  if (d.objetivo) score += 15;
+  if (d.formacoes.filter(f=>f.curso).length) score += 15;
+  if (d.experiencias.filter(e=>e.empresa).length) score += 20;
+  if (skills.length >= 3) score += 15;
+  document.getElementById('progressBar').style.width = score + '%';
+  document.getElementById('progressPct').textContent = score + '%';
+}
+
+// ═══════════════════════════════════════════
+//  PDF GENERATION
+// ═══════════════════════════════════════════
+async function generatePDF() {
+  const d = getData();
+  if (!d.nome) { showToast('Preencha pelo menos seu nome.', 'error'); return; }
+
+  const btn = document.getElementById('generateBtn');
+  btn.innerHTML = '<span class="spinner"></span> Gerando...';
+  btn.disabled = true;
+
+  await new Promise(r => setTimeout(r, 300));
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const W = 210, H = 297;
+
+    if (selectedTemplate === 'classic') buildClassic(doc, d, W, H);
+    else if (selectedTemplate === 'modern') buildModern(doc, d, W, H);
+    else buildMinimal(doc, d, W, H);
+
+    doc.save((d.nome.replace(/\s+/g,'_') || 'curriculo') + '.pdf');
+    showToast('✓ PDF gerado com sucesso!', 'success');
+  } catch(err) {
+    console.error(err);
+    showToast('Erro ao gerar PDF. Tente novamente.', 'error');
+  }
+
+  btn.innerHTML = '<span id="genBtnText">⬇ Baixar PDF</span>';
+  btn.disabled = false;
+}
+
+// ─── TEMPLATE: CLÁSSICO ───────────────────
+function buildClassic(doc, d, W, H) {
+  let y = 0;
+  // Header bar
+  doc.setFillColor(26, 26, 46);
+  doc.rect(0, 0, W, 42, 'F');
+
+  // Photo circle
+  let xStart = 15;
+  if (d.photo) {
+    try {
+      doc.addImage(d.photo, 15, 7, 28, 28, '', 'FAST');
+      // clip with white overlay trick
+      doc.setFillColor(26,26,46);
+    } catch(e) {}
+    xStart = 50;
+  }
+
+  // Name
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.setTextColor(255, 255, 255);
+  doc.text(d.nome || '', xStart, 20);
+
+  // Contact row
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(200, 200, 220);
+  const contacts = [d.email, d.telefone, d.cidade, d.linkedin].filter(Boolean);
+  doc.text(contacts.join('   |   '), xStart, 30);
+
+  y = 54;
+
+  function sectionTitle(txt) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(196, 120, 58);
+    doc.text(txt.toUpperCase(), 15, y);
+    doc.setDrawColor(196, 120, 58);
+    doc.setLineWidth(0.5);
+    doc.line(15, y + 2, W - 15, y + 2);
+    y += 9;
+  }
+
+  function bodyText(txt, indent) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(50, 50, 80);
+    const lines = doc.splitTextToSize(txt, W - 30 - (indent||0));
+    doc.text(lines, 15 + (indent||0), y);
+    y += lines.length * 5 + 2;
+  }
+
+  function labelVal(label, val) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(26, 26, 46);
+    doc.text(label, 15, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 120);
+    doc.text(val, 55, y);
+    y += 6;
+  }
+
+  if (d.objetivo) {
+    sectionTitle('Objetivo Profissional');
+    bodyText(d.objetivo, 0);
+    y += 3;
+  }
+
+  const fv = d.formacoes.filter(f => f.curso);
+  if (fv.length) {
+    sectionTitle('Formação Acadêmica');
+    fv.forEach(f => {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(26, 26, 46);
+      doc.text(f.curso, 15, y); y += 5;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 100, 140);
+      const sub = [f.inst, [f.inicio, f.fim].filter(Boolean).join(' – ')].filter(Boolean).join(' · ');
+      doc.text(sub, 15, y); y += 7;
+    });
+    y += 2;
+  }
+
+  const ev = d.experiencias.filter(e => e.empresa);
+  if (ev.length) {
+    sectionTitle('Experiência Profissional');
+    ev.forEach(e => {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10.5);
+      doc.setTextColor(26, 26, 46);
+      doc.text(e.cargo || '', 15, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(196, 120, 58);
+      doc.text(e.empresa || '', 15 + doc.getTextWidth(e.cargo + '  '), y);
+      y += 5;
+      if (e.inicio || e.fim) {
+        doc.setTextColor(130, 130, 160);
+        doc.text([e.inicio, e.fim].filter(Boolean).join(' – '), 15, y);
+        y += 5;
+      }
+      if (e.desc) { bodyText(e.desc, 0); }
+      y += 3;
+    });
+  }
+
+  if (d.skills.length) {
+    sectionTitle('Habilidades');
+    const perRow = 4, tw = (W - 30) / perRow;
+    d.skills.forEach((s, i) => {
+      const col = i % perRow, row = Math.floor(i / perRow);
+      const px = 15 + col * tw, py = y + row * 7;
+      doc.setFillColor(240, 237, 230);
+      doc.roundedRect(px, py - 4, tw - 4, 6, 2, 2, 'F');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(60, 60, 90);
+      doc.text(s, px + 3, py);
+    });
+    y += Math.ceil(d.skills.length / perRow) * 7 + 5;
+  }
+
+  // Footer
+  doc.setFillColor(26, 26, 46);
+  doc.rect(0, H - 10, W, 10, 'F');
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(150, 150, 180);
+  doc.text('Gerado com CurriculumAI', W/2, H - 4, { align: 'center' });
+}
+
+// ─── TEMPLATE: MODERNO ────────────────────
+function buildModern(doc, d, W, H) {
+  // Sidebar
+  doc.setFillColor(26, 26, 46);
+  doc.rect(0, 0, 68, H, 'F');
+
+  // Accent top bar
+  doc.setFillColor(196, 120, 58);
+  doc.rect(0, 0, 68, 6, 'F');
+
+  let sy = 20, my = 15;
+
+  // Sidebar - photo
+  if (d.photo) {
+    try { doc.addImage(d.photo, 14, sy, 40, 40, '', 'FAST'); sy += 48; }
+    catch(e) { sy += 5; }
+  }
+
+  // Sidebar - name
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(255, 255, 255);
+  const nameLines = doc.splitTextToSize(d.nome || '', 55);
+  doc.text(nameLines, 34, sy, { align: 'center' });
+  sy += nameLines.length * 7 + 8;
+
+  function sideSection(title) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(196, 120, 58);
+    doc.text(title.toUpperCase(), 8, sy);
+    doc.setDrawColor(196, 120, 58);
+    doc.setLineWidth(0.4);
+    doc.line(8, sy + 2, 61, sy + 2);
+    sy += 8;
+  }
+
+  function sideText(txt) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(200, 200, 220);
+    const lines = doc.splitTextToSize(txt, 55);
+    doc.text(lines, 8, sy);
+    sy += lines.length * 4.5 + 3;
+  }
+
+  sideSection('Contato');
+  if (d.email) sideText(d.email);
+  if (d.telefone) sideText(d.telefone);
+  if (d.cidade) sideText(d.cidade);
+  if (d.linkedin) sideText(d.linkedin);
+
+  if (d.skills.length) {
+    sy += 4;
+    sideSection('Habilidades');
+    d.skills.forEach(s => {
+      doc.setFillColor(45, 45, 75);
+      doc.roundedRect(8, sy - 4, 53, 6.5, 2, 2, 'F');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(200, 200, 240);
+      doc.text(s, 11, sy);
+      sy += 8;
+    });
+  }
+
+  // Main area
+  my = 15;
+  const MX = 76, MW = W - MX - 12;
+
+  function mainSection(title) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(26, 26, 46);
+    doc.text(title, MX, my);
+    doc.setFillColor(196, 120, 58);
+    doc.rect(MX, my + 2, 20, 1.5, 'F');
+    my += 10;
+  }
+
+  if (d.objetivo) {
+    mainSection('Objetivo Profissional');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(60, 60, 90);
+    const lines = doc.splitTextToSize(d.objetivo, MW);
+    doc.text(lines, MX, my);
+    my += lines.length * 5 + 8;
+  }
+
+  const fv = d.formacoes.filter(f => f.curso);
+  if (fv.length) {
+    mainSection('Formação Acadêmica');
+    fv.forEach(f => {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(26, 26, 46);
+      doc.text(f.curso, MX, my); my += 5;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(120, 120, 160);
+      doc.text([f.inst, [f.inicio, f.fim].filter(Boolean).join(' – ')].filter(Boolean).join(' · '), MX, my);
+      my += 8;
+    });
+    my += 3;
+  }
+
+  const ev = d.experiencias.filter(e => e.empresa);
+  if (ev.length) {
+    mainSection('Experiência Profissional');
+    ev.forEach(e => {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10.5);
+      doc.setTextColor(26, 26, 46);
+      doc.text(e.cargo || '', MX, my); my += 5;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(196, 120, 58);
+      doc.text([e.empresa, [e.inicio, e.fim].filter(Boolean).join(' – ')].filter(Boolean).join(' · '), MX, my);
+      my += 5;
+      if (e.desc) {
+        doc.setTextColor(60, 60, 90);
+        const dl = doc.splitTextToSize(e.desc, MW);
+        doc.text(dl, MX, my);
+        my += dl.length * 4.5 + 3;
+      }
+      my += 4;
+    });
+  }
+}
+
+// ─── TEMPLATE: MINIMAL ────────────────────
+function buildMinimal(doc, d, W, H) {
+  let y = 30;
+
+  // Minimal top line
+  doc.setDrawColor(196, 120, 58);
+  doc.setLineWidth(1.5);
+  doc.line(15, 15, W - 15, 15);
+
+  // Name
+  doc.setFont('times', 'bold');
+  doc.setFontSize(26);
+  doc.setTextColor(26, 26, 46);
+  doc.text(d.nome || '', 15, y); y += 6;
+
+  // Contact
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 160);
+  const contacts = [d.email, d.telefone, d.cidade, d.linkedin].filter(Boolean);
+  doc.text(contacts.join('   ·   '), 15, y); y += 10;
+
+  doc.setDrawColor(220, 218, 210);
+  doc.setLineWidth(0.3);
+  doc.line(15, y, W - 15, y); y += 8;
+
+  function section(title) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(196, 120, 58);
+    doc.text(title.toUpperCase(), 15, y); y += 7;
+  }
+
+  if (d.objetivo) {
+    section('Objetivo');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(50, 50, 70);
+    const lines = doc.splitTextToSize(d.objetivo, W - 30);
+    doc.text(lines, 15, y);
+    y += lines.length * 5.5 + 8;
+  }
+
+  const fv = d.formacoes.filter(f => f.curso);
+  if (fv.length) {
+    section('Formação');
+    fv.forEach(f => {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(26,26,46);
+      doc.text(f.curso, 15, y);
+      if (f.inicio || f.fim) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(150,150,180);
+        doc.text([f.inicio, f.fim].filter(Boolean).join(' – '), W - 15, y, { align: 'right' });
+      }
+      y += 5;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(100,100,140);
+      if (f.inst) { doc.text(f.inst, 15, y); y += 7; }
+    });
+    y += 3;
+  }
+
+  const ev = d.experiencias.filter(e => e.empresa);
+  if (ev.length) {
+    section('Experiência');
+    ev.forEach(e => {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(26,26,46);
+      doc.text(e.cargo || '', 15, y);
+      if (e.inicio || e.fim) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(150,150,180);
+        doc.text([e.inicio, e.fim].filter(Boolean).join(' – '), W-15, y, { align: 'right' });
+      }
+      y += 5;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(196,120,58);
+      if (e.empresa) { doc.text(e.empresa, 15, y); y += 5; }
+      if (e.desc) {
+        doc.setTextColor(60,60,80);
+        const dl = doc.splitTextToSize(e.desc, W - 30);
+        doc.text(dl, 15, y); y += dl.length * 5 + 3;
+      }
+      y += 4;
+    });
+  }
+
+  if (d.skills.length) {
+    section('Habilidades');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(60,60,90);
+    doc.text(d.skills.join(' · '), 15, y);
+  }
+}
+
+// ═══════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (type||'');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ═══════════════════════════════════════════
+//  KEYBOARD SHORTCUT
+// ═══════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.altKey && e.key === 'Enter') generatePDF();
+});
+
+init();
+</script>
+</body>
+</html>
